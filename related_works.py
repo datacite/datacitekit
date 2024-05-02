@@ -2,8 +2,6 @@
 import requests
 import re
 
-# String matches the regular expression for a doi
-
 def extract_doi(doi_string):
     doi_regex = re.compile(r'^(?:https?://doi\.org/)?(10\.\d{4,9}/[-._;()/:A-Z0-9]+)$', re.I)
     matches = doi_regex.match(doi_string.lower())
@@ -11,8 +9,6 @@ def extract_doi(doi_string):
 
 def is_a_doi(rid):
     return bool(extract_doi(rid.get("relatedIdentifier", "")))
-    # If either the relatedIdentifierType is DOI or the relatedIdentifier matches the regular expression for a doi
-# return rid.get("relatedIdentifierType") == "DOI" or re.match(DOI_REGEX, rid.get("relatedIdentifier"))
 
 def get_related_dois(data):
     related = data.get("relatedIdentifiers", [])
@@ -36,12 +32,6 @@ def get_doi_data(doi):
     else:
         return {}
 
-
-# def outgoing_dois_and_relations(doi):
-#     data = get_doi_data(doi)
-#     related_dois = get_related_dois(data)
-#     relation_types_grouped_by_doi = get_relation_types_grouped_by_doi(related_dois)
-#     return relation_types_grouped_by_doi
 
 def doi_permutations(doi):
     return " OR ".join([
@@ -131,13 +121,13 @@ if __name__ == "__main__":
     query = arguments[0]
 
     # relations = all_relations(query)
-    # pprint(all_relations(query))
     relations = get_relations(query)
-
     pprint(relations)
+    # pprint(get_relations(query))
+    pprint(second_order_relations(query))
     # pprint(relations.get("incoming"))
-    r_dois = relations.get("related_dois")
-    pprint(len(list(r_dois)))
+    # r_dois = relations.get("related_dois")
+    # pprint(len(list(r_dois)))
     #
     # dois_OR = " OR ".join( r_dois)
     # pprint(
@@ -160,5 +150,3 @@ if __name__ == "__main__":
     #                  )
     #     # { k: doi_data.get(k) for k in INTERESTED_ATTRIBUTES}
     #     )
-    # pprint(get_relations(query))
-    # pprint(second_order_relations(query))
