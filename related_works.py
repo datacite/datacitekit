@@ -2,13 +2,18 @@
 import requests
 import re
 
+
 def extract_doi(doi_string):
-    doi_regex = re.compile(r'^(?:https?://doi\.org/)?(10\.\d{4,9}/[-._;()/:A-Z0-9]+)$', re.I)
+    doi_regex = re.compile(
+        r"^(?:https?://doi\.org/)?(10\.\d{4,9}/[-._;()/:A-Z0-9]+)$", re.I
+    )
     matches = doi_regex.match(doi_string.lower())
     return matches.group(1) if matches else None
 
+
 def is_a_doi(rid):
     return bool(extract_doi(rid.get("relatedIdentifier", "")))
+
 
 def get_related_dois(data):
     related = data.get("relatedIdentifiers", [])
@@ -25,6 +30,50 @@ def get_relation_types_grouped_by_doi(related_dois):
     return res
 
 
+class DoiSearcher:
+    def __init__(self, doi, search_url="https://api.datacite.org/dois/"):
+        self.doi = extract_doi(doi)
+        self.search_url = search_url
+
+    @property
+    def doi_permutations(self):
+        doi = self.doi
+        return [f'"{doi}"', f'"https://doi.org/{doi}"', f'"http://doi.org/{doi}"']
+
+    @property
+    def doi_search_query(self):
+        return " OR ".join(self.doi_permutations)
+
+    def search_params(self, page=1):
+        return {
+            "query": self.doi_search_query,
+            "disable_facets": "true",
+            "page[size]": 100,
+            "page[number]": page,
+        }
+
+    def data_for_page(self, page):
+        response = requests.get(self.search_url, params=self.search_params(page))
+        if response.ok:
+            return response.json()
+        else:
+            return {}
+
+    def search(self):
+        pprint("Searching for {}".format(self.doi))
+        data = []
+        page = 1
+        response = self.data_for_page(page)
+        if response:
+            data += response["data"]
+            total_pages = response["meta"]["totalPages"]
+            if total_pages > 1:
+                for page in range(2, total_pages + 1):
+                    response = self.data_for_page(page)
+                    data += response["data"]
+        return data
+
+
 def get_doi_data(doi):
     response = requests.get(f"https://api.datacite.org/dois/{doi}")
     if response.ok:
@@ -33,54 +82,15 @@ def get_doi_data(doi):
         return {}
 
 
-def doi_permutations(doi):
-    return " OR ".join([
-        f'"{doi}"',
-        f'"https://doi.org/{doi}"',
-        f'"http://doi.org/{doi}"'
-    ])
-
-def search_params(doi, page=1):
-    return {
-            "query": doi_permutations(doi),
-        "disable_facets": "true",
-        "page[size]": 100,
-        "page[number]": page,
-    }
-
-
-def data_for_page(doi, page):
-    response = requests.get(
-        "https://api.datacite.org/dois/",
-        params=search_params(doi, page)
-    )
-    return response.json()
-    if response.ok:
-        return response.json()
-    else:
-        return {}
-
-
-def search_for_doi(doi):
-    data = []
-    page = 1
-    response = data_for_page(doi, page)
-    if response:
-        data += response["data"]
-        total_pages = response["meta"]["totalPages"]
-        if total_pages > 1:
-            for page in range(2, total_pages + 1):
-                response = data_for_page(doi, page)
-                data += response["data"]
-    return data
-
-
-
 def all_relations(doi):
-    d_list = search_for_doi(doi)
+    d_list = DoiSearcher(doi).search()
     id_dois = {d["id"]: get_related_dois(d["attributes"]) for d in d_list}
     id_dois2 = {
-        k: [vv for vv in v if extract_doi(vv.get("relatedIdentifier", "")) == doi or k == doi]
+        k: [
+            vv
+            for vv in v
+            if extract_doi(vv.get("relatedIdentifier", "")) == doi or k == doi
+        ]
         for k, v in id_dois.items()
     }
     return {
@@ -101,7 +111,6 @@ def get_relations(doi):
     }
 
 
-
 def second_order_relations(doi):
     primary_relations = get_relations(doi)
     related_dois = primary_relations.get("related_dois", [])
@@ -117,15 +126,12 @@ if __name__ == "__main__":
         sys.exit(1)
 
     arguments = sys.argv[1:]
-
     query = arguments[0]
 
     # relations = all_relations(query)
-    relations = get_relations(query)
-    pprint(relations)
-    # pprint(get_relations(query))
-    pprint(second_order_relations(query))
-    # pprint(relations.get("incoming"))
+    pprint(get_relations(query))
+    # pprint(second_order_relations(query))
+    # pprint(relations.incoming)
     # r_dois = relations.get("related_dois")
     # pprint(len(list(r_dois)))
     #
