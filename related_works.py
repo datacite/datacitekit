@@ -82,8 +82,23 @@ def get_doi_data(doi):
         return {}
 
 
+def get_other_attributes(doi):
+    from glom import glom, Coalesce
+    spec = {
+            "doi":('doi'),
+            'resourceTypeGeneral':('types.resourceTypeGeneral'),
+            'resourceType':('types.resourceType'),
+            # 'creators':('creators'),
+            'creators':('creators', [('nameIdentifiers',['nameIdentifier'])]),
+            # 'creators':('creators.nameIdentifiers.nameIdentifier'),
+            # 'moon_names': ('system.planets', [('moons', ['name'])])
+            }
+    return glom(doi, spec)
+
 def all_relations(doi):
     d_list = DoiSearcher(doi).search()
+    d_attributes = {d["id"]: get_other_attributes(d["attributes"]) for d in d_list}
+    pprint(d_attributes)
     id_dois = {d["id"]: get_related_dois(d["attributes"]) for d in d_list}
     id_dois2 = {
         k: [
@@ -129,9 +144,11 @@ if __name__ == "__main__":
     query = arguments[0]
 
     # relations = all_relations(query)
-    pprint(get_relations(query))
+    relations = get_relations(query)
+    # pprint(get_relations(query))
+    # pprint(get_relations(query))
     # pprint(second_order_relations(query))
-    # pprint(relations.incoming)
+    # pprint(relations)
     # r_dois = relations.get("related_dois")
     # pprint(len(list(r_dois)))
     #
@@ -140,7 +157,7 @@ if __name__ == "__main__":
     #         # f"{r_dois}"
     #     list(r_dois)
     # )
-
+    #
     # INTERESTED_ATTRIBUTES=[
     #     'doi',
     #     'types',
@@ -150,9 +167,19 @@ if __name__ == "__main__":
     # from glom import glom
     # for d in r_dois:
     #     doi_data = get_doi_data(d)
-    #     pprint(
-    #             glom(doi_data,
-    #                  ('doi', 'types.resourceTypeGeneral')
-    #                  )
-    #     # { k: doi_data.get(k) for k in INTERESTED_ATTRIBUTES}
-    #     )
+    #     # pprint(doi_data)
+    #     if doi_data:
+    #         pprint(
+    #                 glom(
+    #                     doi_data,
+    #                     {"doi":('doi'),
+    #                      'resourceTypeGeneral':('types.resourceTypeGeneral')
+    #                      }
+    #                 )
+    #         )
+    # #         pprint(
+    # #             { k: doi_data.get(k) for k in INTERESTED_ATTRIBUTES}
+    # #             )
+    #     else:
+    #         print( f"doi {d} not found" )
+    #     # )
