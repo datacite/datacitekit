@@ -3,6 +3,13 @@ import requests
 import re
 
 
+ROR_PREFIX = "https://ror.org/"
+
+def extract_orcid(orcid_string):
+    orcid_regex = re.compile(r'(?:https?://orcid\.org/)?(\b\d{4}-\d{4}-\d{4}-\d{3}[0-9X]\b)', re.I)
+    matches = orcid_regex.match(orcid_string)
+    return matches.group(1) if matches else None
+
 def extract_doi(doi_string):
     doi_regex = re.compile(
         r"^(?:https?://doi\.org/)?(10\.\d{4,9}/[-._;()/:A-Z0-9]+)$", re.I
@@ -10,6 +17,11 @@ def extract_doi(doi_string):
     matches = doi_regex.match(doi_string.lower())
     return matches.group(1) if matches else None
 
+def extract_ror_id(ror_string):
+    """Extracts ROR id from a string and transforms it into canonical form"""
+    ror_regex = re.compile( r"^(?:(?:(?:http|https):\/\/)?ror\.org\/)?(0\w{6}\d{2})$")
+    matches = ror_regex.match(ror_string)
+    return ROR_PREFIX + matches.group(1) if matches else None
 
 def is_a_doi(rid):
     return bool(extract_doi(rid.get("relatedIdentifier", "")))
@@ -30,23 +42,14 @@ def get_relation_types_grouped_by_doi(related_dois):
     return res
 
 
-class DoiSearcher:
-    def __init__(self, doi, search_url="https://api.datacite.org/dois/"):
-        self.doi = extract_doi(doi)
+class DataCiteSearcher:
+    def __init__(self, search_url="https://api.datacite.org/dois/", query=""):
+        self.search_query = query
         self.search_url = search_url
 
-    @property
-    def doi_permutations(self):
-        doi = self.doi
-        return [f'"{doi}"', f'"https://doi.org/{doi}"', f'"http://doi.org/{doi}"']
-
-    @property
-    def doi_search_query(self):
-        return " OR ".join(self.doi_permutations)
-
-    def search_params(self, page=1):
+    def search_params(self, page=1, query=""):
         return {
-            "query": self.doi_search_query,
+            "query": query or self.search_query,
             "disable_facets": "true",
             "page[size]": 100,
             "page[number]": page,
@@ -60,7 +63,6 @@ class DoiSearcher:
             return {}
 
     def search(self):
-        pprint("Searching for {}".format(self.doi))
         data = []
         page = 1
         response = self.data_for_page(page)
@@ -73,6 +75,33 @@ class DoiSearcher:
                     data += response["data"]
         return data
 
+class DoiSearcher(DataCiteSearcher):
+    def __init__(self, doi, search_url="https://api.datacite.org/dois/"):
+        self.doi = extract_doi(doi)
+        super().__init__(search_url, self.doi_search_query)
+
+    @property
+    def doi_permutations(self):
+        doi = self.doi
+        return [f'"{doi}"', f'"https://doi.org/{doi}"', f'"http://doi.org/{doi}"']
+
+    @property
+    def doi_search_query(self):
+        return " OR ".join(self.doi_permutations)
+
+
+class DoiListSearcher(DataCiteSearcher):
+    def __init__(self, doi_list, search_url="https://api.datacite.org/dois/"):
+        self.doi_list = self._verified_doi_list(doi_list)
+        super().__init__(search_url, self.doi_list_query)
+
+    @property
+    def doi_list_query(self):
+        return "uid:(" + " OR ".join(self.doi_list) + ")"
+
+    def _verified_doi_list(self, raw_doi_list):
+        temp_list = ( extract_doi(doi) for doi in raw_doi_list)
+        return [doi for doi in temp_list if doi is not None]
 
 def get_doi_data(doi):
     response = requests.get(f"https://api.datacite.org/dois/{doi}")
@@ -82,23 +111,35 @@ def get_doi_data(doi):
         return {}
 
 
-def get_other_attributes(doi):
-    from glom import glom, Coalesce
+def get_other_attributes(doi_attributes):
+    from glom import glom, Iter
+    doi_attributes =  doi_attributes.get("attributes", {}) or doi_attributes
+    if not doi_attributes:
+        return {}
     spec = {
             "doi":('doi'),
             'resourceTypeGeneral':('types.resourceTypeGeneral'),
             'resourceType':('types.resourceType'),
-            # 'creators':('creators'),
-            'creators':('creators', [('nameIdentifiers',['nameIdentifier'])]),
-            # 'creators':('creators.nameIdentifiers.nameIdentifier'),
-            # 'moon_names': ('system.planets', [('moons', ['name'])])
+            'creator_ids':('creators', [('nameIdentifiers',(['nameIdentifier']))],Iter().flatten().all()),
+            'orcid_ids':('creators', [('nameIdentifiers',(['nameIdentifier']))],Iter().flatten().
+                         map(lambda x: extract_orcid(x)).
+                         filter(lambda x : x is not None).all()),
+            'contributor_ids':('contributors', [('nameIdentifiers',(['nameIdentifier']))],Iter().flatten().all()),
+            'ror_ids':('contributors',
+                       [('nameIdentifiers',(['nameIdentifier']))],Iter().flatten().
+                       map(lambda x: extract_ror_id(x)).
+                       filter(lambda x : x is not None).
+                       all()
+                       ),
+            'related_identifiers':('relatedIdentifiers', Iter().
+                                   filter(lambda r : is_a_doi(r)).
+                                   all()),
             }
-    return glom(doi, spec)
+    return glom(doi_attributes, spec)
 
-def all_relations(doi):
-    d_list = DoiSearcher(doi).search()
+def all_relations(d_list, doi):
     d_attributes = {d["id"]: get_other_attributes(d["attributes"]) for d in d_list}
-    pprint(d_attributes)
+    # pprint(d_attributes)
     id_dois = {d["id"]: get_related_dois(d["attributes"]) for d in d_list}
     id_dois2 = {
         k: [
@@ -114,7 +155,8 @@ def all_relations(doi):
 
 
 def get_relations(doi):
-    a_relations = all_relations(doi)
+    doi_list = DoiSearcher(doi).search()
+    a_relations = all_relations(doi_list, doi)
     o_relations = a_relations.pop(doi, {})
     i_relations = {k: v.get(doi, []) for k, v in a_relations.items()}
     all_dois = set(o_relations.keys()) | set(i_relations.keys())
@@ -132,54 +174,24 @@ def second_order_relations(doi):
     return [get_relations(d) for d in related_dois]
 
 
-if __name__ == "__main__":
-    from pprint import pprint
+def _get_query():
     import sys
-
     if len(sys.argv) < 2:
         print("Usage: python related_works.py <doi>")
         sys.exit(1)
-
     arguments = sys.argv[1:]
     query = arguments[0]
+    return query
 
-    # relations = all_relations(query)
+if __name__ == "__main__":
+    from pprint import pprint
+
+    query = _get_query()
+
     relations = get_relations(query)
-    # pprint(get_relations(query))
-    # pprint(get_relations(query))
-    # pprint(second_order_relations(query))
-    # pprint(relations)
-    # r_dois = relations.get("related_dois")
-    # pprint(len(list(r_dois)))
-    #
-    # dois_OR = " OR ".join( r_dois)
-    # pprint(
-    #         # f"{r_dois}"
-    #     list(r_dois)
-    # )
-    #
-    # INTERESTED_ATTRIBUTES=[
-    #     'doi',
-    #     'types',
-    #     'creators',
-    #     'contributors',
-    # ]
-    # from glom import glom
-    # for d in r_dois:
-    #     doi_data = get_doi_data(d)
-    #     # pprint(doi_data)
-    #     if doi_data:
-    #         pprint(
-    #                 glom(
-    #                     doi_data,
-    #                     {"doi":('doi'),
-    #                      'resourceTypeGeneral':('types.resourceTypeGeneral')
-    #                      }
-    #                 )
-    #         )
-    # #         pprint(
-    # #             { k: doi_data.get(k) for k in INTERESTED_ATTRIBUTES}
-    # #             )
-    #     else:
-    #         print( f"doi {d} not found" )
-    #     # )
+    pprint(relations)
+    outgoing = relations.get("outgoing")
+    searcher = DoiListSearcher(outgoing.keys())
+    outgoing_data = searcher.search()
+    for doi_data in outgoing_data:
+        pprint( get_other_attributes(doi_data) )
