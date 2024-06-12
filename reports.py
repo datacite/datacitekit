@@ -1,5 +1,6 @@
 from collections import defaultdict
 from extractors import extract_doi
+
 class Aggregator:
     def __init__(self, base_connections):
         self.base_connections = base_connections

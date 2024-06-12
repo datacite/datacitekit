@@ -5,26 +5,11 @@ from extractors import (
         extract_orcid,
         extract_ror_id,
 )
-from searchers import (
-        DoiListSearcher,
-        DoiSearcher,
-)
-from reports import (
-        RelatedWorkReports,
-)
+from searchers import DoiListSearcher, DoiSearcher
+from reports import RelatedWorkReports
 
 def is_a_doi(rid):
     return bool(extract_doi(rid.get("relatedIdentifier", "")))
-
-
-def get_relation_types_grouped_by_doi(related_dois):
-    res = {}
-    for r in related_dois:
-        r_doi = extract_doi(r.get("relatedIdentifier", ""))
-        r_type = r["relationType"]
-        res[r_doi] = [r_type] if r_doi not in res.keys() else res[r_doi] + [r_type]
-    return res
-
 
 def parse_attributes(doi_result):
 
@@ -61,6 +46,13 @@ def parse_attributes(doi_result):
     return glom(doi_result, spec)
 
 
+def get_relation_types_grouped_by_doi(related_dois):
+    res = {}
+    for r in related_dois:
+        r_doi = extract_doi(r.get("relatedIdentifier", ""))
+        r_type = r["relationType"]
+        res[r_doi] = [r_type] if r_doi not in res.keys() else res[r_doi] + [r_type]
+    return res
 
 
 
