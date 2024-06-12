@@ -22,12 +22,3 @@ def extract_ror_id(ror_string):
     ror_regex = re.compile(r"^(?:(?:(?:http|https):\/\/)?ror\.org\/)?(0\w{6}\d{2})$")
     matches = ror_regex.match(ror_string)
     return ROR_PREFIX + matches.group(1) if matches else None
-
-
-def is_a_doi(rid):
-    return bool(extract_doi(rid.get("relatedIdentifier", "")))
-
-def get_related_dois(data):
-    related = data.get("related_identifiers", [])
-    related_dois = [r for r in related if is_a_doi(r)]
-    return related_dois
