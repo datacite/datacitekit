@@ -1,5 +1,7 @@
 import re
+
 ROR_PREFIX = "https://ror.org/"
+
 
 def extract_orcid(orcid_string):
     orcid_regex = re.compile(

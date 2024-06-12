@@ -1,18 +1,19 @@
 # coding: utf-8
 from glom import glom, Iter
 from extractors import (
-        extract_doi,
-        extract_orcid,
-        extract_ror_id,
+    extract_doi,
+    extract_orcid,
+    extract_ror_id,
 )
 from searchers import DoiListSearcher, DoiSearcher
 from reports import RelatedWorkReports
 
+
 def is_a_doi(rid):
     return bool(extract_doi(rid.get("relatedIdentifier", "")))
 
-def parse_attributes(doi_result):
 
+def parse_attributes(doi_result):
     doi_result = doi_result.get("attributes", {}) or doi_result
     if not doi_result:
         return {}
@@ -55,7 +56,6 @@ def get_relation_types_grouped_by_doi(related_dois):
     return res
 
 
-
 def _get_query():
     import sys
 
@@ -65,6 +65,7 @@ def _get_query():
     arguments = sys.argv[1:]
     query = arguments[0]
     return query
+
 
 def get_full_corpus_doi_attributes(doi_query):
     # Get incoming and primary
@@ -91,8 +92,5 @@ if __name__ == "__main__":
     full_doi_attributes = get_full_corpus_doi_attributes(doi_query)
     report = RelatedWorkReports(full_doi_attributes)
 
-    graph = {
-            "nodes" : report.aggregate_counts,
-            "edges" : report.type_connection_report
-            }
+    graph = {"nodes": report.aggregate_counts, "edges": report.type_connection_report}
     print(json.dumps(graph, indent=4))
