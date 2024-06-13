@@ -57,21 +57,33 @@ def get_relation_types_grouped_by_doi(related_dois):
         res[r_doi] = [r_type] if r_doi not in res.keys() else res[r_doi] + [r_type]
     return res
 
-def get_incoming_and_primary_attributes(doi_query):
+def get_incoming_and_primary_attributes(doi_query, doi_url):
     # Get incoming links and primary doi
-    doi_list = DoiSearcher(doi_query).search()
+    doi_list = DoiSearcher(doi_query, doi_url).search()
     doi_attributes = parse_list(doi_list)
     return doi_attributes
 
-def get_outgoing_link_attributes(primary_doi):
+def get_outgoing_link_attributes(primary_doi, doi_url):
     relations_grouped_by_doi = get_relation_types_grouped_by_doi(
         primary_doi.get("related_identifiers", [])
     )
     # Get outgoing links
     outgoing_dois = relations_grouped_by_doi.keys()
-    outgoing_doi_list = DoiListSearcher(outgoing_dois).search()
+    outgoing_doi_list = DoiListSearcher(outgoing_dois, doi_url).search()
     outgoing_doi_attributes = parse_list(outgoing_doi_list)
     return outgoing_doi_attributes
+
+def get_full_corpus_doi_attributes(doi_query, doi_api="https://api.datacite.org/dois/"):
+    doi_attributes = get_incoming_and_primary_attributes(doi_query, doi_api)
+    if doi_query in doi_attributes.keys():
+        primary_doi = doi_attributes.get(doi_query, {})
+        outgoing_doi_attributes = get_outgoing_link_attributes(primary_doi, doi_api)
+    else:
+        outgoing_doi_attributes = {}
+
+    # Add lists to get full corpus of attributes
+    full_doi_attributes = {**doi_attributes, **outgoing_doi_attributes}
+    return full_doi_attributes
 
 def _get_query():
     import sys
@@ -84,24 +96,12 @@ def _get_query():
     return query
 
 
-def get_full_corpus_doi_attributes(doi_query):
-    doi_attributes = get_incoming_and_primary_attributes(doi_query)
-    if doi_query in doi_attributes.keys():
-        primary_doi = doi_attributes.get(doi_query, {})
-        outgoing_doi_attributes = get_outgoing_link_attributes(primary_doi)
-    else:
-        outgoing_doi_attributes = {}
-
-    # Add lists to get full corpus of attributes
-    full_doi_attributes = {**doi_attributes, **outgoing_doi_attributes}
-    return full_doi_attributes
-
-
 if __name__ == "__main__":
     import json
 
+    DOI_API = "https://api.stage.datacite.org/dois/"
     doi_query = _get_query()
-    full_doi_attributes = get_full_corpus_doi_attributes(doi_query)
+    full_doi_attributes = get_full_corpus_doi_attributes(doi_query, DOI_API)
     report = RelatedWorkReports(full_doi_attributes)
 
     graph = {"nodes": report.aggregate_counts, "edges": report.type_connection_report}
