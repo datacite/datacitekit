@@ -1,5 +1,5 @@
 # coding: utf-8
-from glom import glom, Iter
+from glom import glom, Iter, Coalesce
 from extractors import (
     extract_doi,
     extract_orcid,
@@ -19,8 +19,8 @@ def parse_attributes(doi_result):
         return {}
     spec = {
         "doi": ("doi"),
-        "resourceTypeGeneral": ("types.resourceTypeGeneral"),
-        "resourceType": ("types.resourceType"),
+        "resourceTypeGeneral": Coalesce("types.resourceTypeGeneral", default=''),
+        "resourceType": Coalesce("types.resourceType", default=''),
         "orcid_ids": (
             "creators",
             [("nameIdentifiers", (["nameIdentifier"]))],
@@ -46,6 +46,8 @@ def parse_attributes(doi_result):
     }
     return glom(doi_result, spec)
 
+def parse_list(doi_list):
+    return {d["id"]: parse_attributes(d) for d in doi_list}
 
 def get_relation_types_grouped_by_doi(related_dois):
     res = {}
@@ -55,6 +57,15 @@ def get_relation_types_grouped_by_doi(related_dois):
         res[r_doi] = [r_type] if r_doi not in res.keys() else res[r_doi] + [r_type]
     return res
 
+def get_outgoing_link_attributes(primary_doi):
+    relations_grouped_by_doi = get_relation_types_grouped_by_doi(
+        primary_doi.get("related_identifiers", [])
+    )
+    # Get outgoing links
+    outgoing_dois = relations_grouped_by_doi.keys()
+    outgoing_doi_list = DoiListSearcher(outgoing_dois).search()
+    outgoing_doi_attributes = parse_list(outgoing_doi_list)
+    return outgoing_doi_attributes
 
 def _get_query():
     import sys
@@ -68,17 +79,14 @@ def _get_query():
 
 
 def get_full_corpus_doi_attributes(doi_query):
-    # Get incoming and primary
+    # Get incoming links and primary doi
     doi_list = DoiSearcher(doi_query).search()
-    doi_attributes = {d["id"]: parse_attributes(d) for d in doi_list}
-    primary_doi = doi_attributes.get(doi_query)
-    relations_grouped_by_doi = get_relation_types_grouped_by_doi(
-        primary_doi.get("related_identifiers", [])
-    )
-    # Get Outgoing
-    outgoing_dois = relations_grouped_by_doi.keys()
-    outgoing_doi_list = DoiListSearcher(outgoing_dois).search()
-    outgoing_doi_attributes = {d["id"]: parse_attributes(d) for d in outgoing_doi_list}
+    doi_attributes = parse_list(doi_list)
+    if doi_query in doi_attributes.keys():
+        primary_doi = doi_attributes.get(doi_query, {})
+        outgoing_doi_attributes = get_outgoing_link_attributes(primary_doi)
+    else:
+        outgoing_doi_attributes = {}
 
     # Add lists to get full corpus of attributes
     full_doi_attributes = {**doi_attributes, **outgoing_doi_attributes}
