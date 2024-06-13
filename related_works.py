@@ -57,6 +57,12 @@ def get_relation_types_grouped_by_doi(related_dois):
         res[r_doi] = [r_type] if r_doi not in res.keys() else res[r_doi] + [r_type]
     return res
 
+def get_incoming_and_primary_attributes(doi_query):
+    # Get incoming links and primary doi
+    doi_list = DoiSearcher(doi_query).search()
+    doi_attributes = parse_list(doi_list)
+    return doi_attributes
+
 def get_outgoing_link_attributes(primary_doi):
     relations_grouped_by_doi = get_relation_types_grouped_by_doi(
         primary_doi.get("related_identifiers", [])
@@ -79,9 +85,7 @@ def _get_query():
 
 
 def get_full_corpus_doi_attributes(doi_query):
-    # Get incoming links and primary doi
-    doi_list = DoiSearcher(doi_query).search()
-    doi_attributes = parse_list(doi_list)
+    doi_attributes = get_incoming_and_primary_attributes(doi_query)
     if doi_query in doi_attributes.keys():
         primary_doi = doi_attributes.get(doi_query, {})
         outgoing_doi_attributes = get_outgoing_link_attributes(primary_doi)
