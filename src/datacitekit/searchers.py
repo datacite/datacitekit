@@ -1,5 +1,5 @@
 import requests
-from extractors import extract_doi
+from .extractors import extract_doi
 
 
 class DataCiteSearcher:

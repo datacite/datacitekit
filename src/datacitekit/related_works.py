@@ -1,12 +1,12 @@
 # coding: utf-8
 from glom import glom, Iter, Coalesce
-from extractors import (
+from .extractors import (
     extract_doi,
     extract_orcid,
     extract_ror_id,
 )
-from searchers import DoiListSearcher, DoiSearcher
-from reports import RelatedWorkReports
+from .searchers import DoiListSearcher, DoiSearcher
+from .reports import RelatedWorkReports
 
 
 def is_a_doi(rid):

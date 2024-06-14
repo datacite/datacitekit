@@ -1,5 +1,5 @@
 from collections import defaultdict
-from extractors import extract_doi
+from .extractors import extract_doi
 
 
 class Aggregator:
