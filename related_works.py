@@ -21,7 +21,7 @@ def parse_attributes(doi_result):
         "doi": ("doi"),
         "resourceTypeGeneral": Coalesce("types.resourceTypeGeneral", default=''),
         "resourceType": Coalesce("types.resourceType", default=''),
-        "orcid_ids": (
+        "orcid_ids": Coalesce((
             "creators",
             [("nameIdentifiers", (["nameIdentifier"]))],
             Iter()
@@ -29,8 +29,8 @@ def parse_attributes(doi_result):
             .map(lambda x: extract_orcid(x))
             .filter(lambda x: x is not None)
             .all(),
-        ),
-        "ror_ids": (
+        ), default=[],),
+        "ror_ids": Coalesce((
             "contributors",
             [("nameIdentifiers", (["nameIdentifier"]))],
             Iter()
@@ -38,11 +38,11 @@ def parse_attributes(doi_result):
             .map(lambda x: extract_ror_id(x))
             .filter(lambda x: x is not None)
             .all(),
-        ),
-        "related_identifiers": (
+        ), default=[]),
+        "related_identifiers": Coalesce((
             "relatedIdentifiers",
             Iter().filter(lambda r: is_a_doi(r)).all(),
-        ),
+        ), default=[]),
     }
     return glom(doi_result, spec)
 
@@ -73,11 +73,11 @@ def get_outgoing_link_attributes(primary_doi, doi_url):
     outgoing_doi_attributes = parse_list(outgoing_doi_list)
     return outgoing_doi_attributes
 
-def get_full_corpus_doi_attributes(doi_query, doi_api="https://api.datacite.org/dois/"):
-    doi_attributes = get_incoming_and_primary_attributes(doi_query, doi_api)
+def get_full_corpus_doi_attributes(doi_query, api_url="https://api.stage.datacite.org/dois/"):
+    doi_attributes = get_incoming_and_primary_attributes(doi_query, api_url)
     if doi_query in doi_attributes.keys():
         primary_doi = doi_attributes.get(doi_query, {})
-        outgoing_doi_attributes = get_outgoing_link_attributes(primary_doi, doi_api)
+        outgoing_doi_attributes = get_outgoing_link_attributes(primary_doi, api_url)
     else:
         outgoing_doi_attributes = {}
 
@@ -100,6 +100,7 @@ if __name__ == "__main__":
     import json
 
     DOI_API = "https://api.stage.datacite.org/dois/"
+    DOI_API = "https://api.datacite.org/dois/"
     doi_query = _get_query()
     full_doi_attributes = get_full_corpus_doi_attributes(doi_query, DOI_API)
     report = RelatedWorkReports(full_doi_attributes)
