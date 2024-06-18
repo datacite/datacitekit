@@ -1,5 +1,5 @@
 # test_extractors.py
-from extractors import extract_orcid, extract_doi, extract_ror_id
+from datacitekit.extractors import extract_orcid, extract_doi, extract_ror_id
 
 def test_extract_orcid():
     assert extract_orcid("https://orcid.org/0000-0002-1825-0097") == "0000-0002-1825-0097"
