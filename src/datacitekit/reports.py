@@ -1,5 +1,14 @@
+import re
 from collections import defaultdict
+
 from .extractors import extract_doi
+
+
+def camel_terms(value):
+    return re.findall(
+        "[A-Z][a-z]+|[0-9A-Z]+(?=[A-Z][a-z])|[0-9A-Z]{2,}|[a-z0-9]{2,}|[a-zA-Z0-9]",
+        value,
+    )
 
 
 class Aggregator:
@@ -50,29 +59,24 @@ class RelatedWorkReports:
         self.aggregator = Aggregator(self.base_connections)
 
     def _base_connections(self):
-        dois = list(self.data.keys())
-        doi_index_map = {doi: index for index, doi in enumerate(dois)}
+        dois = self.data.keys()
         report = []
         for doi, entry in self.data.items():
-            index = doi_index_map[doi]
             connections = []
             for related in entry.get("related_identifiers", []):
                 related_doi = extract_doi(related["relatedIdentifier"])
-                if related_doi in doi_index_map:
-                    related_index = doi_index_map[related_doi]
+                if related_doi in dois:
                     connections.append(
                         {
                             "related_doi": related_doi,
                             "relation_type": related.get("relationType", "Unknown"),
-                            "related_index": related_index,
                         }
                     )
             report.append(
                 {
                     "doi": doi,
-                    "index": index,
                     "connections": connections,
-                    "resource_type": self._get_resource_type(entry).title(),
+                    "resource_type": self._get_resource_type(entry),
                     "orcid_ids": entry.get("orcid_ids", []),
                     "ror_ids": entry.get("ror_ids", []),
                 }
@@ -80,8 +84,8 @@ class RelatedWorkReports:
         return report
 
     def _get_resource_type(self, doi_attributes):
-        return doi_attributes.get("resourceType") or doi_attributes.get(
-            "resourceTypeGeneral", "Unknown"
+        return " ".join(
+            camel_terms(doi_attributes.get("resourceTypeGeneral", "Unknown"))
         )
 
     @property
