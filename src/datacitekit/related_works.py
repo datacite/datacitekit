@@ -18,7 +18,7 @@ def parse_attributes(doi_result):
         "doi": ("doi"),
         "resourceTypeGeneral": Coalesce("types.resourceTypeGeneral", default=""),
         "resourceType": Coalesce("types.resourceType", default=""),
-        "orcid_ids": Coalesce(
+        "creator_orcid_ids": Coalesce(
             (
                 "creators",
                 [("nameIdentifiers", (["nameIdentifier"]))],
@@ -54,7 +54,7 @@ def parse_attributes(doi_result):
             ),
             default=[],
         ),
-        "ror_ids": Coalesce(
+        "contributor_ror_ids": Coalesce(
             (
                 "contributors",
                 [("nameIdentifiers", (["nameIdentifier"]))],

@@ -77,10 +77,12 @@ class RelatedWorkReports:
                     "doi": doi,
                     "connections": connections,
                     "resource_type": self._get_resource_type(entry),
-                    "orcid_ids": set(entry.get("creator_orcid_ids", []))
-                    | set(entry.get("contributor_orcid_ids", [])),
-                    "ror_ids": set(entry.get("creator_ror_ids", []))
-                    | set(entry.get("contributor_ror_ids", [])),
+                    "orcid_ids": set(entry.get("creator_orcid_ids", [])).union(
+                        set(entry.get("contributor_orcid_ids", []))
+                    ),
+                    "ror_ids": set(entry.get("creator_ror_ids", [])).union(
+                        set(entry.get("contributor_ror_ids", [])),
+                    ),
                 }
             )
         return report
