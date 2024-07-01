@@ -77,13 +77,26 @@ class RelatedWorkReports:
                     "doi": doi,
                     "connections": connections,
                     "resource_type": self._get_resource_type(entry),
-                    "orcid_ids": entry.get("orcid_ids", []),
-                    "ror_ids": entry.get("ror_ids", []),
+                    "orcid_ids": set(entry.get("creator_orcid_ids", []))
+                    | set(entry.get("contributor_orcid_ids", [])),
+                    "ror_ids": set(entry.get("creator_ror_ids", []))
+                    | set(entry.get("contributor_ror_ids", [])),
                 }
             )
         return report
 
+    def _is_a_project(self, doi_attributes):
+        return doi_attributes.get("resourceType", "Unknown") == "Project" and (
+            doi_attributes.get("resourceTypeGeneral", "Unknown")
+            in [
+                "Other",
+                "Text",
+            ]
+        )
+
     def _get_resource_type(self, doi_attributes):
+        if self._is_a_project(doi_attributes):
+            return "Project"
         return " ".join(
             camel_terms(doi_attributes.get("resourceTypeGeneral", "Unknown"))
         )
