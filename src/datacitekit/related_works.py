@@ -1,12 +1,9 @@
 # coding: utf-8
-from glom import glom, Iter, Coalesce
-from .extractors import (
-    extract_doi,
-    extract_orcid,
-    extract_ror_id,
-)
-from .searchers import DoiListSearcher, DoiSearcher
+from glom import Coalesce, Iter, glom
+
+from .extractors import extract_doi, extract_orcid, extract_ror_id
 from .reports import RelatedWorkReports
+from .searchers import DoiListSearcher, DoiSearcher
 
 
 def is_a_doi(rid):
@@ -19,35 +16,70 @@ def parse_attributes(doi_result):
         return {}
     spec = {
         "doi": ("doi"),
-        "resourceTypeGeneral": Coalesce("types.resourceTypeGeneral", default=''),
-        "resourceType": Coalesce("types.resourceType", default=''),
-        "orcid_ids": Coalesce((
-            "creators",
-            [("nameIdentifiers", (["nameIdentifier"]))],
-            Iter()
-            .flatten()
-            .map(lambda x: extract_orcid(x))
-            .filter(lambda x: x is not None)
-            .all(),
-        ), default=[],),
-        "ror_ids": Coalesce((
-            "contributors",
-            [("nameIdentifiers", (["nameIdentifier"]))],
-            Iter()
-            .flatten()
-            .map(lambda x: extract_ror_id(x))
-            .filter(lambda x: x is not None)
-            .all(),
-        ), default=[]),
-        "related_identifiers": Coalesce((
-            "relatedIdentifiers",
-            Iter().filter(lambda r: is_a_doi(r)).all(),
-        ), default=[]),
+        "resourceTypeGeneral": Coalesce("types.resourceTypeGeneral", default=""),
+        "resourceType": Coalesce("types.resourceType", default=""),
+        "orcid_ids": Coalesce(
+            (
+                "creators",
+                [("nameIdentifiers", (["nameIdentifier"]))],
+                Iter()
+                .flatten()
+                .map(lambda x: extract_orcid(x))
+                .filter(lambda x: x is not None)
+                .all(),
+            ),
+            default=[],
+        ),
+        "contributor_orcid_ids": Coalesce(
+            (
+                "contributors",
+                [("nameIdentifiers", (["nameIdentifier"]))],
+                Iter()
+                .flatten()
+                .map(lambda x: extract_orcid(x))
+                .filter(lambda x: x is not None)
+                .all(),
+            ),
+            default=[],
+        ),
+        "creator_ror_ids": Coalesce(
+            (
+                "contributors",
+                [("nameIdentifiers", (["nameIdentifier"]))],
+                Iter()
+                .flatten()
+                .map(lambda x: extract_ror_id(x))
+                .filter(lambda x: x is not None)
+                .all(),
+            ),
+            default=[],
+        ),
+        "ror_ids": Coalesce(
+            (
+                "contributors",
+                [("nameIdentifiers", (["nameIdentifier"]))],
+                Iter()
+                .flatten()
+                .map(lambda x: extract_ror_id(x))
+                .filter(lambda x: x is not None)
+                .all(),
+            ),
+            default=[],
+        ),
+        "related_identifiers": Coalesce(
+            (
+                "relatedIdentifiers",
+                Iter().filter(lambda r: is_a_doi(r)).all(),
+            ),
+            default=[],
+        ),
     }
     return glom(doi_result, spec)
 
+
 def parse_list(doi_list):
     return {d["id"]: parse_attributes(d) for d in doi_list}
+
 
 def get_relation_types_grouped_by_doi(related_dois):
     res = {}
@@ -57,11 +89,13 @@ def get_relation_types_grouped_by_doi(related_dois):
         res[r_doi] = [r_type] if r_doi not in res.keys() else res[r_doi] + [r_type]
     return res
 
+
 def get_incoming_and_primary_attributes(doi_query, doi_url):
     # Get incoming links and primary doi
     doi_list = DoiSearcher(doi_query, doi_url).search()
     doi_attributes = parse_list(doi_list)
     return doi_attributes
+
 
 def get_outgoing_link_attributes(primary_doi, doi_url):
     relations_grouped_by_doi = get_relation_types_grouped_by_doi(
@@ -73,7 +107,10 @@ def get_outgoing_link_attributes(primary_doi, doi_url):
     outgoing_doi_attributes = parse_list(outgoing_doi_list)
     return outgoing_doi_attributes
 
-def get_full_corpus_doi_attributes(doi_query, api_url="https://api.stage.datacite.org/dois/"):
+
+def get_full_corpus_doi_attributes(
+    doi_query, api_url="https://api.stage.datacite.org/dois/"
+):
     doi_attributes = get_incoming_and_primary_attributes(doi_query, api_url)
     if doi_query in doi_attributes.keys():
         primary_doi = doi_attributes.get(doi_query, {})
@@ -84,6 +121,7 @@ def get_full_corpus_doi_attributes(doi_query, api_url="https://api.stage.datacit
     # Add lists to get full corpus of attributes
     full_doi_attributes = {**doi_attributes, **outgoing_doi_attributes}
     return full_doi_attributes
+
 
 def _get_query():
     import sys
