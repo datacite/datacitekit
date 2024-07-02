@@ -80,9 +80,10 @@ class RelatedWorkReports:
                     "orcid_ids": set(entry.get("creator_orcid_ids", [])).union(
                         set(entry.get("contributor_orcid_ids", []))
                     ),
-                    "ror_ids": set(entry.get("creator_ror_ids", [])).union(
-                        set(entry.get("contributor_ror_ids", [])),
-                    ),
+                    "ror_ids": set(entry.get("creator_ror_ids", []))
+                    .union(set(entry.get("contributor_ror_ids", [])))
+                    .union(set(entry.get("creator_affiliation_ror_ids", [])))
+                    .union(set(entry.get("contributor_affiliation_ror_ids", []))),
                 }
             )
         return report
