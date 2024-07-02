@@ -12,6 +12,7 @@ class DataCiteSearcher:
         return {
             "query": query or self.search_query,
             "disable_facets": "true",
+            "affiliation": "true",
             "include-other-registration-agencies": "true",
             "page[size]": 100,
             "page[number]": page,
