@@ -30,6 +30,30 @@ def parse_attributes(doi_result):
             ),
             default=[],
         ),
+        "creator_ror_ids": Coalesce(
+            (
+                "creator",
+                [("nameIdentifiers", (["nameIdentifier"]))],
+                Iter()
+                .flatten()
+                .map(lambda x: extract_ror_id(x))
+                .filter(lambda x: x is not None)
+                .all(),
+            ),
+            default=[],
+        ),
+        "creator_affiliation_ror_ids": Coalesce(
+            (
+                "creators",
+                [("affiliation", (["affiliationIdentifier"]))],
+                Iter()
+                .flatten()
+                .map(lambda x: extract_ror_id(x))
+                .filter(lambda x: x is not None)
+                .all(),
+            ),
+            default=[],
+        ),
         "contributor_orcid_ids": Coalesce(
             (
                 "contributors",
@@ -37,18 +61,6 @@ def parse_attributes(doi_result):
                 Iter()
                 .flatten()
                 .map(lambda x: extract_orcid(x))
-                .filter(lambda x: x is not None)
-                .all(),
-            ),
-            default=[],
-        ),
-        "creator_ror_ids": Coalesce(
-            (
-                "contributors",
-                [("nameIdentifiers", (["nameIdentifier"]))],
-                Iter()
-                .flatten()
-                .map(lambda x: extract_ror_id(x))
                 .filter(lambda x: x is not None)
                 .all(),
             ),
@@ -65,6 +77,18 @@ def parse_attributes(doi_result):
                 .all(),
             ),
             default=[],
+        ),
+        "contributor_affiliation_ror_ids": Coalesce(
+            (
+                "contributors",
+                [("affiliation", (["affiliationIdentifier"]))],
+                Iter()
+                .flatten()
+                .map(lambda x: extract_ror_id(x))
+                .filter(lambda x: x is not None)
+                .all(),
+            ),
+            default="BOB",
         ),
         "related_identifiers": Coalesce(
             (
