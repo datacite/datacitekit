@@ -1,7 +1,9 @@
 import re
 from collections import defaultdict
 
-from .extractors import extract_doi
+from glom import Coalesce, Iter, glom
+
+from .extractors import extract_doi, extract_orcid, extract_ror_id
 
 
 def camel_terms(value):
@@ -58,6 +60,101 @@ class RelatedWorkReports:
         self.base_connections = self._base_connections()
         self.aggregator = Aggregator(self.base_connections)
 
+    @staticmethod
+    def is_a_doi(related):
+        return bool(extract_doi(related.get("relatedIdentifier", "")))
+
+    @staticmethod
+    def parser(doi_result):
+        doi_result = doi_result.get("attributes", {}) or doi_result
+        if not doi_result:
+            return {}
+        spec = {
+            "doi": ("doi"),
+            "resourceTypeGeneral": Coalesce("types.resourceTypeGeneral", default=""),
+            "resourceType": Coalesce("types.resourceType", default=""),
+            "creator_orcid_ids": Coalesce(
+                (
+                    "creators",
+                    [("nameIdentifiers", (["nameIdentifier"]))],
+                    Iter()
+                    .flatten()
+                    .map(lambda x: extract_orcid(x))
+                    .filter(lambda x: x is not None)
+                    .all(),
+                ),
+                default=[],
+            ),
+            "creator_ror_ids": Coalesce(
+                (
+                    "creator",
+                    [("nameIdentifiers", (["nameIdentifier"]))],
+                    Iter()
+                    .flatten()
+                    .map(lambda x: extract_ror_id(x))
+                    .filter(lambda x: x is not None)
+                    .all(),
+                ),
+                default=[],
+            ),
+            "creator_affiliation_ror_ids": Coalesce(
+                (
+                    "creators",
+                    [("affiliation", (["affiliationIdentifier"]))],
+                    Iter()
+                    .flatten()
+                    .map(lambda x: extract_ror_id(x))
+                    .filter(lambda x: x is not None)
+                    .all(),
+                ),
+                default=[],
+            ),
+            "contributor_orcid_ids": Coalesce(
+                (
+                    "contributors",
+                    [("nameIdentifiers", (["nameIdentifier"]))],
+                    Iter()
+                    .flatten()
+                    .map(lambda x: extract_orcid(x))
+                    .filter(lambda x: x is not None)
+                    .all(),
+                ),
+                default=[],
+            ),
+            "contributor_ror_ids": Coalesce(
+                (
+                    "contributors",
+                    [("nameIdentifiers", (["nameIdentifier"]))],
+                    Iter()
+                    .flatten()
+                    .map(lambda x: extract_ror_id(x))
+                    .filter(lambda x: x is not None)
+                    .all(),
+                ),
+                default=[],
+            ),
+            "contributor_affiliation_ror_ids": Coalesce(
+                (
+                    "contributors",
+                    [("affiliation", (["affiliationIdentifier"]))],
+                    Iter()
+                    .flatten()
+                    .map(lambda x: extract_ror_id(x))
+                    .filter(lambda x: x is not None)
+                    .all(),
+                ),
+                default="BOB",
+            ),
+            "related_identifiers": Coalesce(
+                (
+                    "relatedIdentifiers",
+                    Iter().filter(lambda r: RelatedWorkReports.is_a_doi(r)).all(),
+                ),
+                default=[],
+            ),
+        }
+        return glom(doi_result, spec)
+
     def _base_connections(self):
         dois = self.data.keys()
         report = []
@@ -109,14 +206,24 @@ class RelatedWorkReports:
         NODE_FIELD = "title"
         NODE_COUNT = "count"
         aggregate_report = []
-        # Aggregate the counts for People
-        aggregate_report.append(
-            {NODE_FIELD: "People", NODE_COUNT: len(self.aggregator.full_people)}
-        )
-        # Aggregate the counts for Organizations
-        aggregate_report.append(
-            {NODE_FIELD: "Organizations", NODE_COUNT: len(self.aggregator.full_orgs)}
-        )
+        people_count = len(self.aggregator.full_people)
+        org_count = len(self.aggregator.full_orgs)
+        # # Aggregate the counts for People
+        if people_count > 0:
+            aggregate_report.append(
+                {
+                    NODE_FIELD: "People",
+                    NODE_COUNT: people_count,
+                }
+            )
+        # # Aggregate the counts for Organizations
+        if org_count > 0:
+            aggregate_report.append(
+                {
+                    NODE_FIELD: "Organizations",
+                    NODE_COUNT: org_count,
+                }
+            )
 
         for resource_type, count in self.aggregator.type_counts.items():
             aggregate_report.append({NODE_FIELD: resource_type, NODE_COUNT: count})
@@ -138,7 +245,7 @@ class RelatedWorkReports:
                     }
                 )
 
-        for resource_type, count in self.aggregator.type_counts.items():
+        for resource_type in self.aggregator.type_counts.keys():
             people_count = len(self.aggregator.people_counts[resource_type])
             org_count = len(self.aggregator.org_counts[resource_type])
             # Add aggregates for connections between resource types and people
@@ -159,4 +266,4 @@ class RelatedWorkReports:
                         EDGE_COUNT_FIELD: org_count,
                     }
                 )
-            return type_connections_report
+        return type_connections_report
