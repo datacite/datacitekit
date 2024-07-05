@@ -1,7 +1,7 @@
 # coding: utf-8
 
 from .extractors import extract_doi
-from .reports import RelatedWorkReports
+from .resource_type_graph import RelatedWorkReports
 from .searchers import DoiListSearcher, DoiSearcher
 
 

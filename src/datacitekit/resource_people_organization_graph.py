@@ -13,6 +13,10 @@ def camel_terms(value):
     )
 
 
+def camel_to_string(value):
+    return " ".join(camel_terms(value))
+
+
 class Aggregator:
     def __init__(self, base_connections):
         self.base_connections = base_connections
@@ -54,7 +58,7 @@ class Aggregator:
         }
 
 
-class RelatedWorkReports:
+class RelatedWorkWithPeopleOrgsReport:
     def __init__(self, data):
         self.data = data
         self.base_connections = self._base_connections()
@@ -197,9 +201,7 @@ class RelatedWorkReports:
     def _get_resource_type(self, doi_attributes):
         if self._is_a_project(doi_attributes):
             return "Project"
-        return " ".join(
-            camel_terms(doi_attributes.get("resourceTypeGeneral", "Unknown"))
-        )
+        return camel_to_string(doi_attributes.get("resourceTypeGeneral", "Unknown"))
 
     @property
     def aggregate_counts(self):
