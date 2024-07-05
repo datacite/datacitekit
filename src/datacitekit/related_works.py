@@ -1,108 +1,8 @@
 # coding: utf-8
-from glom import Coalesce, Iter, glom
 
-from .extractors import extract_doi, extract_orcid, extract_ror_id
-from .reports import RelatedWorkReports
+from .extractors import extract_doi
+from .resource_type_graph import RelatedWorkReports
 from .searchers import DoiListSearcher, DoiSearcher
-
-
-def is_a_doi(rid):
-    return bool(extract_doi(rid.get("relatedIdentifier", "")))
-
-
-def parse_attributes(doi_result):
-    doi_result = doi_result.get("attributes", {}) or doi_result
-    if not doi_result:
-        return {}
-    spec = {
-        "doi": ("doi"),
-        "resourceTypeGeneral": Coalesce("types.resourceTypeGeneral", default=""),
-        "resourceType": Coalesce("types.resourceType", default=""),
-        "creator_orcid_ids": Coalesce(
-            (
-                "creators",
-                [("nameIdentifiers", (["nameIdentifier"]))],
-                Iter()
-                .flatten()
-                .map(lambda x: extract_orcid(x))
-                .filter(lambda x: x is not None)
-                .all(),
-            ),
-            default=[],
-        ),
-        "creator_ror_ids": Coalesce(
-            (
-                "creator",
-                [("nameIdentifiers", (["nameIdentifier"]))],
-                Iter()
-                .flatten()
-                .map(lambda x: extract_ror_id(x))
-                .filter(lambda x: x is not None)
-                .all(),
-            ),
-            default=[],
-        ),
-        "creator_affiliation_ror_ids": Coalesce(
-            (
-                "creators",
-                [("affiliation", (["affiliationIdentifier"]))],
-                Iter()
-                .flatten()
-                .map(lambda x: extract_ror_id(x))
-                .filter(lambda x: x is not None)
-                .all(),
-            ),
-            default=[],
-        ),
-        "contributor_orcid_ids": Coalesce(
-            (
-                "contributors",
-                [("nameIdentifiers", (["nameIdentifier"]))],
-                Iter()
-                .flatten()
-                .map(lambda x: extract_orcid(x))
-                .filter(lambda x: x is not None)
-                .all(),
-            ),
-            default=[],
-        ),
-        "contributor_ror_ids": Coalesce(
-            (
-                "contributors",
-                [("nameIdentifiers", (["nameIdentifier"]))],
-                Iter()
-                .flatten()
-                .map(lambda x: extract_ror_id(x))
-                .filter(lambda x: x is not None)
-                .all(),
-            ),
-            default=[],
-        ),
-        "contributor_affiliation_ror_ids": Coalesce(
-            (
-                "contributors",
-                [("affiliation", (["affiliationIdentifier"]))],
-                Iter()
-                .flatten()
-                .map(lambda x: extract_ror_id(x))
-                .filter(lambda x: x is not None)
-                .all(),
-            ),
-            default="BOB",
-        ),
-        "related_identifiers": Coalesce(
-            (
-                "relatedIdentifiers",
-                Iter().filter(lambda r: is_a_doi(r)).all(),
-            ),
-            default=[],
-        ),
-    }
-    return glom(doi_result, spec)
-
-
-def parse_list(doi_list):
-    return {d["id"]: parse_attributes(d) for d in doi_list}
 
 
 def get_relation_types_grouped_by_doi(related_dois):
@@ -114,31 +14,37 @@ def get_relation_types_grouped_by_doi(related_dois):
     return res
 
 
-def get_incoming_and_primary_attributes(doi_query, doi_url):
+def parse_list(doi_list, parser):
+    return {d["id"]: parser(d) for d in doi_list}
+
+
+def get_incoming_and_primary_attributes(doi_query, doi_url, parser):
     # Get incoming links and primary doi
     doi_list = DoiSearcher(doi_query, doi_url).search()
-    doi_attributes = parse_list(doi_list)
+    doi_attributes = parse_list(doi_list, parser)
     return doi_attributes
 
 
-def get_outgoing_link_attributes(primary_doi, doi_url):
+def get_outgoing_link_attributes(primary_doi, doi_url, parser):
     relations_grouped_by_doi = get_relation_types_grouped_by_doi(
         primary_doi.get("related_identifiers", [])
     )
     # Get outgoing links
     outgoing_dois = relations_grouped_by_doi.keys()
     outgoing_doi_list = DoiListSearcher(outgoing_dois, doi_url).search()
-    outgoing_doi_attributes = parse_list(outgoing_doi_list)
+    outgoing_doi_attributes = parse_list(outgoing_doi_list, parser)
     return outgoing_doi_attributes
 
 
 def get_full_corpus_doi_attributes(
-    doi_query, api_url="https://api.stage.datacite.org/dois/"
+    doi_query, parser, api_url="https://api.stage.datacite.org/dois/"
 ):
-    doi_attributes = get_incoming_and_primary_attributes(doi_query, api_url)
+    doi_attributes = get_incoming_and_primary_attributes(doi_query, api_url, parser)
     if doi_query in doi_attributes.keys():
         primary_doi = doi_attributes.get(doi_query, {})
-        outgoing_doi_attributes = get_outgoing_link_attributes(primary_doi, api_url)
+        outgoing_doi_attributes = get_outgoing_link_attributes(
+            primary_doi, api_url, parser
+        )
     else:
         outgoing_doi_attributes = {}
 
@@ -164,7 +70,9 @@ if __name__ == "__main__":
     DOI_API = "https://api.stage.datacite.org/dois/"
     DOI_API = "https://api.datacite.org/dois/"
     doi_query = _get_query()
-    full_doi_attributes = get_full_corpus_doi_attributes(doi_query, DOI_API)
+    full_doi_attributes = get_full_corpus_doi_attributes(
+        doi_query, RelatedWorkReports.parser, DOI_API
+    )
     report = RelatedWorkReports(full_doi_attributes)
 
     graph = {"nodes": report.aggregate_counts, "edges": report.type_connection_report}

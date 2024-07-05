@@ -66,11 +66,3 @@ class DoiListSearcher(DataCiteSearcher):
     def _verified_doi_list(self, raw_doi_list):
         temp_list = (extract_doi(doi) for doi in raw_doi_list)
         return [doi for doi in temp_list if doi is not None]
-
-
-# def get_doi_data(doi):
-#     response = requests.get(f"https://api.datacite.org/dois/{doi}")
-#     if response.ok:
-#         return response.json()["data"]["attributes"]
-#     else:
-#         return {}
