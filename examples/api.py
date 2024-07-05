@@ -2,7 +2,7 @@ import os
 
 from datacitekit.extractors import extract_doi
 from datacitekit.related_works import get_full_corpus_doi_attributes
-from datacitekit.reports import RelatedWorkReports
+from datacitekit.resource_type_graph import RelatedWorkReports
 from flask import Flask, jsonify
 
 DOI_API = os.getenv("DOI_API", "https://api.stage.datacite.org/dois/")
