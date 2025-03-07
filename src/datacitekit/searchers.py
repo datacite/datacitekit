@@ -4,9 +4,12 @@ from .extractors import extract_doi
 
 
 class DataCiteSearcher:
-    def __init__(self, search_url="https://api.datacite.org/dois/", query=""):
+    def __init__(
+        self, search_url="https://api.datacite.org/dois/", query="", page_size=100
+    ):
         self.search_query = query
         self.search_url = search_url
+        self.page_size = page_size
 
     def search_params(self, page=1, query=""):
         return {
@@ -14,7 +17,7 @@ class DataCiteSearcher:
             "disable_facets": "true",
             "affiliation": "true",
             "include-other-registration-agencies": "true",
-            "page[size]": 100,
+            "page[size]": self.page_size,
             "page[number]": page,
         }
 
@@ -57,11 +60,17 @@ class DoiSearcher(DataCiteSearcher):
 class DoiListSearcher(DataCiteSearcher):
     def __init__(self, doi_list, search_url="https://api.datacite.org/dois/"):
         self.doi_list = self._verified_doi_list(doi_list)
-        super().__init__(search_url, self.doi_list_query)
+        super().__init__(search_url)
 
-    @property
-    def doi_list_query(self):
-        return "uid:(" + " OR ".join(self.doi_list) + ")"
+    def search_params(self, page=1, query=""):
+        return {
+            "ids": ",".join(self.doi_list),
+            "disable_facets": "true",
+            "affiliation": "true",
+            "include-other-registration-agencies": "true",
+            "page[size]": self.page_size,
+            "page[number]": page,
+        }
 
     def _verified_doi_list(self, raw_doi_list):
         temp_list = (extract_doi(doi) for doi in raw_doi_list)
