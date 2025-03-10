@@ -76,16 +76,15 @@ if __name__ == "__main__":
         doi_query, RelatedWorkReports.parser, DOI_API
     )
     report = DoiRelationRelatonsReport(full_doi_attributes)
-    merged = report.relations_to_doi(doi_query)
+    relations = report.relations_to_doi(doi_query)
 
-    # merged = relations_to_doi(doi_query, report.base_connections)
-    merged_counts = dict(
-        [(relation, len(values)) for relation, values in merged.items() if values]
+    relation_counts = dict(
+        [(relation, len(values)) for relation, values in relations.items() if values]
     )
     pprint(" --- Merged counts --- ")
-    for relation, count in merged_counts.items():
+    for relation, count in relation_counts.items():
         pprint("{}: {}".format(relation, count))
-    total = sum(merged_counts.values())
+    total = sum(relation_counts.values())
     pprint("all: {}".format(total))
 
     # graph = {"nodes": report.aggregate_counts, "edges": report.type_connection_report}
