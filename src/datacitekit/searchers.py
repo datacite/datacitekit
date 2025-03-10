@@ -15,10 +15,10 @@ class DataCiteSearcher:
         return {
             "query": query or self.search_query,
             "disable_facets": "true",
-            "affiliation": "true",
             "include-other-registration-agencies": "true",
             "page[size]": self.page_size,
             "page[number]": page,
+            "fields[dois]": "doi,types,relatedIdentifiers",
         }
 
     def data_for_page(self, page):
@@ -63,14 +63,9 @@ class DoiListSearcher(DataCiteSearcher):
         super().__init__(search_url)
 
     def search_params(self, page=1, query=""):
-        return {
-            "ids": ",".join(self.doi_list),
-            "disable_facets": "true",
-            "affiliation": "true",
-            "include-other-registration-agencies": "true",
-            "page[size]": self.page_size,
-            "page[number]": page,
-        }
+        _search_params = super().search_params(page, query)
+        _search_params["ids"] = ",".join(self.doi_list)
+        return _search_params
 
     def _verified_doi_list(self, raw_doi_list):
         temp_list = (extract_doi(doi) for doi in raw_doi_list)
