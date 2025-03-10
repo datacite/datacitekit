@@ -2,6 +2,30 @@ import re
 from collections import defaultdict
 
 
+def camel_terms(value):
+    """Split a string into its constituent terms based on camelCase and other patterns.
+
+    This function breaks down strings into component terms using a complex regular expression
+    that matches various patterns including:
+    - Words starting with capital letters followed by lowercase letters (e.g., "Camel")
+    - Groups of uppercase letters or numbers before a camelCase word (e.g., "XML" in "XMLParser")
+    - Groups of 2 or more uppercase letters or numbers (e.g., "API", "123")
+    - Groups of 2 or more lowercase letters or numbers (e.g., "api", "123")
+    - Single alphanumeric characters
+
+    Args:
+        value (str): The input string to split into terms
+
+    Returns:
+        list: A list of strings, each representing a term found in the input
+    """
+
+    return re.findall(
+        "[A-Z][a-z]+|[0-9A-Z]+(?=[A-Z][a-z])|[0-9A-Z]{2,}|[a-z0-9]{2,}|[a-zA-Z0-9]",
+        value,
+    )
+
+
 def camel_to_hyphen_case(camel_case_str):
     """Convert a camelCase string to hyphen-case format.
 
