@@ -7,6 +7,42 @@ class DoiRelationRelatonsReport:
     Reports relationships between DOIs.
     """
 
+    # Relations where the subject is considered the source
+    SUBJECT_SOURCE_RELATIONS = {
+        # Citation relations
+        "cites",
+        "is-supplemented-by",
+        "references",
+        # Version relations
+        "has-version",
+        "is-new-version-of",
+        # Part relations
+        "has-part",
+        # Documentation/Description relations
+        "documents",
+        "describes",
+        # Metadata relations
+        "has-metadata",
+        # Compilation relations
+        "compiles",
+        # Review relations
+        "reviews",
+        # Derivation relations
+        "is-source-of",
+        # Continuation relations
+        "continues",
+        # Requirement relations
+        "requires",
+        # Obsolescence relations
+        "obsoletes",
+        # Collection relations
+        "collects",
+        # Translation relations
+        "has-translation",
+        # Variant relations
+        "is-original-form-of",
+    }
+
     RELATION_MAPPING = {
         # Citation relations
         "cites": ("references", "citations"),
@@ -18,12 +54,31 @@ class DoiRelationRelatonsReport:
         # Version relations
         "has-version": ("versions", "version_of"),
         "is-version-of": ("version_of", "versions"),
+        "is-new-version-of": ("new_versions", "previous_versions"),
+        "is-previous-version-of": ("previous_versions", "new_versions"),
         # Part relations
         "has-part": ("parts", "part_of"),
         "is-part-of": ("part_of", "parts"),
         # Documentation relations
         "documents": ("documents", "is_documented_by"),
         "is-documented-by": ("is_documented_by", "documents"),
+        "describes": ("descriptions", "is_described_by"),
+        "is-described-by": ("is_described_by", "descriptions"),
+        # Metadata relations
+        "has-metadata": ("metadata", "is_metadata_for"),
+        "is-metadata-for": ("is_metadata_for", "metadata"),
+        # Publication relations
+        "is-published-in": ("published_in", "publications"),
+        # Compilation relations
+        "compiles": ("compilations", "is_compiled_by"),
+        "is-compiled-by": ("is_compiled_by", "compilations"),
+        # Variant/Identity relations
+        "is-variant-form-of": ("variants", "original_forms"),
+        "is-original-form-of": ("original_forms", "variants"),
+        "is-identical-to": ("identical_to", "identical_to"),
+        # Review relations
+        "reviews": ("reviews", "is_reviewed_by"),
+        "is-reviewed-by": ("is_reviewed_by", "reviews"),
         # Derivation relations
         "is-source-of": ("sources", "derived_from"),
         "is-derived-from": ("derived_from", "sources"),
@@ -33,6 +88,15 @@ class DoiRelationRelatonsReport:
         # Requirement relations
         "requires": ("requires", "is_required_by"),
         "is-required-by": ("is_required_by", "requires"),
+        # Obsolescence relations
+        "obsoletes": ("obsoletes", "is_obsoleted_by"),
+        "is-obsoleted-by": ("is_obsoleted_by", "obsoletes"),
+        # Collection relations
+        "collects": ("collections", "is_collected_by"),
+        "is-collected-by": ("is_collected_by", "collections"),
+        # Translation relations
+        "has-translation": ("translations", "is_translation_of"),
+        "is-translation-of": ("is_translation_of", "translations"),
     }
 
     def __init__(self, data):
@@ -98,17 +162,7 @@ class DoiRelationRelatonsReport:
                 relation_type_id
             ]
             # Relations where the subject is the source
-            if relation_type_id in (
-                "cites",
-                "is-supplemented-by",
-                "references",
-                "has-version",
-                "has-part",
-                "documents",
-                "is-source-of",
-                "continues",
-                "requires",
-            ):
+            if relation_type_id in DoiRelationRelatonsReport.SUBJECT_SOURCE_RELATIONS:
                 result["source_doi"] = subj_id
                 result["target_doi"] = obj_id
             else:  # Relations where the object is the source
