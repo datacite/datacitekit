@@ -4,7 +4,6 @@ from .doi_relations import DoiRelationRelatonsReport
 from .extractors import extract_doi
 from .resource_type_graph import RelatedWorkReports
 from .searchers import DoiListSearcher, DoiSearcher
-from .utils import camel_to_hyphen_case, group_by, merge_list_dicts
 
 
 def get_relation_types_grouped_by_doi(related_dois):
@@ -67,10 +66,10 @@ def _get_query():
 
 
 if __name__ == "__main__":
+    import os
     from pprint import pprint
 
-    DOI_API = "https://api.stage.datacite.org/dois/"
-    DOI_API = "https://api.datacite.org/dois/"
+    DOI_API = os.getenv("DOI_API", "https://api.stage.datacite.org/dois/")
     doi_query = _get_query()
     full_doi_attributes = get_full_corpus_doi_attributes(
         doi_query, RelatedWorkReports.parser, DOI_API
