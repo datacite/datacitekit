@@ -43,9 +43,9 @@ class DataCiteSearcher:
 
 
 class DoiSearcher(DataCiteSearcher):
-    def __init__(self, doi, search_url="https://api.datacite.org/dois/"):
+    def __init__(self, doi, search_url="https://api.datacite.org/dois/", page_size=100):
         self.doi = extract_doi(doi)
-        super().__init__(search_url, self.doi_search_query)
+        super().__init__(search_url, self.doi_search_query, page_size)
 
     @property
     def doi_permutations(self):
@@ -70,3 +70,8 @@ class DoiListSearcher(DataCiteSearcher):
     def _verified_doi_list(self, raw_doi_list):
         temp_list = (extract_doi(doi) for doi in raw_doi_list)
         return [doi for doi in temp_list if doi is not None]
+
+    def search(self):
+        if not self.doi_list:
+            return []
+        return super().search()
