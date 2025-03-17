@@ -1,16 +1,9 @@
-import re
 from collections import defaultdict
 
 from glom import Coalesce, Iter, glom
 
 from .extractors import extract_doi, extract_orcid, extract_ror_id
-
-
-def camel_terms(value):
-    return re.findall(
-        "[A-Z][a-z]+|[0-9A-Z]+(?=[A-Z][a-z])|[0-9A-Z]{2,}|[a-z0-9]{2,}|[a-zA-Z0-9]",
-        value,
-    )
+from .utils import camel_terms
 
 
 def camel_to_string(value):
