@@ -4,18 +4,21 @@ from .extractors import extract_doi
 
 
 class DataCiteSearcher:
-    def __init__(self, search_url="https://api.datacite.org/dois/", query=""):
+    def __init__(
+        self, search_url="https://api.datacite.org/dois/", query="", page_size=100
+    ):
         self.search_query = query
         self.search_url = search_url
+        self.page_size = page_size
 
     def search_params(self, page=1, query=""):
         return {
             "query": query or self.search_query,
             "disable_facets": "true",
-            "affiliation": "true",
             "include-other-registration-agencies": "true",
-            "page[size]": 100,
+            "page[size]": self.page_size,
             "page[number]": page,
+            "fields[dois]": "doi,types,relatedIdentifiers",
         }
 
     def data_for_page(self, page):
@@ -40,9 +43,9 @@ class DataCiteSearcher:
 
 
 class DoiSearcher(DataCiteSearcher):
-    def __init__(self, doi, search_url="https://api.datacite.org/dois/"):
+    def __init__(self, doi, search_url="https://api.datacite.org/dois/", page_size=100):
         self.doi = extract_doi(doi)
-        super().__init__(search_url, self.doi_search_query)
+        super().__init__(search_url, self.doi_search_query, page_size)
 
     @property
     def doi_permutations(self):
@@ -57,12 +60,18 @@ class DoiSearcher(DataCiteSearcher):
 class DoiListSearcher(DataCiteSearcher):
     def __init__(self, doi_list, search_url="https://api.datacite.org/dois/"):
         self.doi_list = self._verified_doi_list(doi_list)
-        super().__init__(search_url, self.doi_list_query)
+        super().__init__(search_url)
 
-    @property
-    def doi_list_query(self):
-        return "uid:(" + " OR ".join(self.doi_list) + ")"
+    def search_params(self, page=1, query=""):
+        _search_params = super().search_params(page, query)
+        _search_params["ids"] = ",".join(self.doi_list)
+        return _search_params
 
     def _verified_doi_list(self, raw_doi_list):
         temp_list = (extract_doi(doi) for doi in raw_doi_list)
         return [doi for doi in temp_list if doi is not None]
+
+    def search(self):
+        if not self.doi_list:
+            return []
+        return super().search()

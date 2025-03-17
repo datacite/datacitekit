@@ -1,5 +1,6 @@
 # coding: utf-8
 
+from .doi_relations import DoiRelationRelatonsReport
 from .extractors import extract_doi
 from .resource_type_graph import RelatedWorkReports
 from .searchers import DoiListSearcher, DoiSearcher
@@ -65,15 +66,25 @@ def _get_query():
 
 
 if __name__ == "__main__":
-    import json
+    import os
+    from pprint import pprint
 
-    DOI_API = "https://api.stage.datacite.org/dois/"
-    DOI_API = "https://api.datacite.org/dois/"
+    DOI_API = os.getenv("DOI_API", "https://api.stage.datacite.org/dois/")
     doi_query = _get_query()
     full_doi_attributes = get_full_corpus_doi_attributes(
         doi_query, RelatedWorkReports.parser, DOI_API
     )
-    report = RelatedWorkReports(full_doi_attributes)
+    report = DoiRelationRelatonsReport(full_doi_attributes)
+    relations = report.relations_to_doi(doi_query)
 
-    graph = {"nodes": report.aggregate_counts, "edges": report.type_connection_report}
-    print(json.dumps(graph, indent=4))
+    relation_counts = dict(
+        [(relation, len(values)) for relation, values in relations.items() if values]
+    )
+    pprint(" --- Merged counts --- ")
+    for relation, count in relation_counts.items():
+        pprint("{}: {}".format(relation, count))
+    total = sum(relation_counts.values())
+    pprint("all: {}".format(total))
+
+    # graph = {"nodes": report.aggregate_counts, "edges": report.type_connection_report}
+    # print(json.dumps(graph, indent=4))
